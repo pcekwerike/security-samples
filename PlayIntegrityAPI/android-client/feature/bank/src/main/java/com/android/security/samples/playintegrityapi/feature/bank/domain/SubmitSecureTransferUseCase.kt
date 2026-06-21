@@ -26,6 +26,7 @@ import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
 import java.math.BigDecimal
 import java.math.RoundingMode
+import java.util.UUID
 import javax.inject.Inject
 import kotlin.coroutines.cancellation.CancellationException
 
@@ -84,9 +85,14 @@ class SubmitSecureTransferUseCase @Inject constructor(
     }
 
     private fun createTransferRequest(accountNumber: String, amount: BigDecimal): TransferRequest {
+        // NOTE: While Play Integrity API Standard Mode offers automatic replay protection,
+        // it only prevents a single token from being verified excessively (typically more than ~3 times).
+        // To strictly prevent duplicate requests (exactly-once execution), an app must implement
+        // its own idempotency mechanism using a unique key.
         return TransferRequest(
             amount = amount.setScale(2, RoundingMode.HALF_UP).toPlainString(),
-            accountNumber = accountNumber
+            accountNumber = accountNumber,
+            idempotencyKey = UUID.randomUUID().toString()
         )
     }
 

@@ -15,6 +15,12 @@
 const cryptoService = require('../../services/crypto.service');
 const bankPolicy = require('./bank.policy');
 
+// In-memory store for idempotency keys (Sample App Only)
+// PRODUCTION NOTE: In a real-world environment, use a distributed cache (e.g., Redis)
+// or a database with atomic constraints to store idempotency keys. This ensures
+// thread safety and prevents race conditions across multiple server instances.
+const processedTransactions = new Set();
+
 /**
  * Controller for handling Bank micro-app endpoints.
  */
@@ -30,6 +36,30 @@ class BankController {
     async handleTransfer(req, res, next) {
         try {
             const payload = req.body;
+            const idempotencyKey = payload.idempotencyKey;
+
+            if (!idempotencyKey) {
+                return res.status(400).json({
+                    status: "ERROR",
+                    error_code: "MISSING_IDEMPOTENCY_KEY",
+                    message: "An idempotency key is required to process the transfer."
+                });
+            }
+
+            // Validate Idempotency Key (Strict Duplicate Prevention)
+            // PRODUCTION NOTE: While Play Integrity API Standard Mode provides automatic
+            // replay protection, it only prevents a token from being decoded/replayed
+            // excessively (typically more than ~3 times). For strict, exactly-once operations
+            // like financial transfers, apps cannot rely solely on PIA's automatic replay
+            // protection. You must implement your own idempotency check using a unique key.
+            if (processedTransactions.has(idempotencyKey)) {
+                return res.status(409).json({
+                    status: "ERROR",
+                    error_code: "DUPLICATE_TRANSACTION",
+                    message: "A transaction with this idempotency key has already been processed."
+                });
+            }
+
             // Access the payload attached by the integrity middleware
             const tokenPayload = res.locals.integrityPayload;
             if (!tokenPayload) {
@@ -65,6 +95,11 @@ class BankController {
                     remediation_action: "GET_INTEGRITY"
                 });
             }
+
+            // Register Idempotency Key
+            // PRODUCTION NOTE: Register the idempotency key in Redis/DB *after* all
+            // validations pass, ideally alongside the actual database transaction commit.
+            processedTransactions.add(idempotencyKey);
 
             // Happy Path: Process transaction
             return res.status(200).json({

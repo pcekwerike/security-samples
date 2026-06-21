@@ -24,7 +24,11 @@ describe('BankController Unit Tests', () => {
 
     beforeEach(() => {
         req = {
-            body: { accountNumber: "1234567890", amount: "50.00" }
+            body: {
+                accountNumber: "1234567890",
+                amount: "50.00",
+                idempotencyKey: `test-key-${Date.now()}-${Math.random()}`
+            }
         };
 
         res = {
@@ -36,6 +40,35 @@ describe('BankController Unit Tests', () => {
         next = jest.fn();
 
         jest.clearAllMocks();
+    });
+
+    it('should return 400 MISSING_IDEMPOTENCY_KEY if key is missing', async () => {
+        delete req.body.idempotencyKey;
+
+        await bankController.handleTransfer(req, res, next);
+
+        expect(res.status).toHaveBeenCalledWith(400);
+        expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+            error_code: "MISSING_IDEMPOTENCY_KEY"
+        }));
+    });
+
+    it('should return 409 DUPLICATE_TRANSACTION if key was already processed', async () => {
+        res.locals.integrityPayload = { requestDetails: { requestHash: 'hash' } };
+        cryptoService.computePayloadHash.mockReturnValue('hash');
+        bankPolicy.evaluateTransferPolicy.mockReturnValue(true);
+
+        await bankController.handleTransfer(req, res, next);
+        expect(res.status).toHaveBeenCalledWith(200);
+
+        // Run again with the exact same request body
+        const duplicateRes = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+        await bankController.handleTransfer(req, duplicateRes, next);
+
+        expect(duplicateRes.status).toHaveBeenCalledWith(409);
+        expect(duplicateRes.json).toHaveBeenCalledWith(expect.objectContaining({
+            error_code: "DUPLICATE_TRANSACTION"
+        }));
     });
 
     it('should return 401 UNAUTHORIZED if token payload is missing', async () => {
