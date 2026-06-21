@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+const { StatusCodes } = require('http-status-codes');
 const cryptoService = require('../../services/crypto.service');
 const bankPolicy = require('./bank.policy');
 
@@ -39,7 +40,7 @@ class BankController {
             const idempotencyKey = payload.idempotencyKey;
 
             if (!idempotencyKey) {
-                return res.status(400).json({
+                return res.status(StatusCodes.BAD_REQUEST).json({
                     status: "ERROR",
                     error_code: "MISSING_IDEMPOTENCY_KEY",
                     message: "An idempotency key is required to process the transfer."
@@ -53,7 +54,7 @@ class BankController {
             // like financial transfers, apps cannot rely solely on PIA's automatic replay
             // protection. You must implement your own idempotency check using a unique key.
             if (processedTransactions.has(idempotencyKey)) {
-                return res.status(409).json({
+                return res.status(StatusCodes.CONFLICT).json({
                     status: "ERROR",
                     error_code: "DUPLICATE_TRANSACTION",
                     message: "A transaction with this idempotency key has already been processed."
@@ -63,7 +64,7 @@ class BankController {
             // Access the payload attached by the integrity middleware
             const tokenPayload = res.locals.integrityPayload;
             if (!tokenPayload) {
-                return res.status(401).json({
+                return res.status(StatusCodes.UNAUTHORIZED).json({
                     status: "ERROR",
                     error_code: "UNAUTHORIZED",
                     message: "A valid Play Integrity token is required for the transaction."
@@ -76,7 +77,7 @@ class BankController {
             // Verify Content Binding
             const tokenRequestHash = tokenPayload.requestDetails?.requestHash;
             if (serverRequestHash !== tokenRequestHash) {
-                return res.status(403).json({
+                return res.status(StatusCodes.FORBIDDEN).json({
                     status: "ERROR",
                     error_code: "REQUEST_TAMPERED",
                     message: "The request payload has been altered."
@@ -87,7 +88,7 @@ class BankController {
             const isPolicyMet = bankPolicy.evaluateTransferPolicy(tokenPayload);
 
             if (!isPolicyMet) {
-                return res.status(403).json({
+                return res.status(StatusCodes.FORBIDDEN).json({
                     status: "ERROR",
                     error_code: "INTEGRITY_REJECTED",
                     message: "Device does not meet the required security standards.",
@@ -102,7 +103,7 @@ class BankController {
             processedTransactions.add(idempotencyKey);
 
             // Happy Path: Process transaction
-            return res.status(200).json({
+            return res.status(StatusCodes.OK).json({
                 status: "SUCCESS",
                 transactionId: `TXN-${Math.floor(Math.random() * 1000000000)}`,
                 message: "Transfer completed successfully."

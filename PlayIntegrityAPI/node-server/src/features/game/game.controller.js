@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+const { StatusCodes } = require('http-status-codes');
 const crypto = require('crypto');
 const gamePolicy = require('./game.policy');
 const cryptoService = require('../../services/crypto.service');
@@ -73,7 +74,7 @@ class GameController {
                 hasInitSecurityViolation: !verdicts.isSecure
             });
 
-            return res.status(200).json({
+            return res.status(StatusCodes.OK).json({
                 status: "SUCCESS",
                 sessionId,
                 targetTime,
@@ -95,7 +96,7 @@ class GameController {
             const tokenPayload = res.locals.integrityPayload || null;
             const verdicts = gamePolicy.evaluateEnvironment(tokenPayload);
 
-            return res.status(200).json({
+            return res.status(StatusCodes.OK).json({
                 status: "SUCCESS",
                 checklist: verdicts
             });
@@ -114,18 +115,18 @@ class GameController {
             const finalTokenPayload = res.locals.integrityPayload || null;
 
             const session = activeSessions.get(sessionId);
-            if (!session) return res.status(404).json({ status: "ERROR", message: "Session expired." });
+            if (!session) return res.status(StatusCodes.NOT_FOUND).json({ status: "ERROR", message: "Session expired." });
 
             activeSessions.delete(sessionId);
 
             // Reject the score if they reached the end without a valid final token
             if (!finalTokenPayload) {
-                return res.status(403).json({ status: "ERROR", message: "Environment compromised: Invalid final attestation." });
+                return res.status(StatusCodes.FORBIDDEN).json({ status: "ERROR", message: "Environment compromised: Invalid final attestation." });
             }
 
             // 1. Verify standard payload integrity (Content Binding)
             if (!this.#verifyFinalPayloadHash(req.body, finalTokenPayload)) {
-                return res.status(403).json({ status: "ERROR", message: "Payload signature validation failed." });
+                return res.status(StatusCodes.FORBIDDEN).json({ status: "ERROR", message: "Payload signature validation failed." });
             }
 
             // 2. Verify all background interval tokens
@@ -138,15 +139,15 @@ class GameController {
             );
 
             if (intervalError) {
-                return res.status(403).json(intervalError);
+                return res.status(StatusCodes.FORBIDDEN).json(intervalError);
             }
 
             // 3. Final environmental check
             if (session.hasInitSecurityViolation || !this.#verifyFinalEnvironment(finalTokenPayload)) {
-                return res.status(403).json({ status: "ERROR", message: "Environment compromised." });
+                return res.status(StatusCodes.FORBIDDEN).json({ status: "ERROR", message: "Environment compromised." });
             }
 
-            return res.status(200).json({ status: "SUCCESS", message: "Score verified." });
+            return res.status(StatusCodes.OK).json({ status: "SUCCESS", message: "Score verified." });
 
         } catch (error) {
             next(error);

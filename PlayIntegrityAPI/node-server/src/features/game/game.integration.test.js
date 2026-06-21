@@ -15,6 +15,7 @@
 const request = require('supertest');
 const crypto = require('crypto');
 const app = require('../../../app');
+const { StatusCodes } = require('http-status-codes');
 
 const cryptoService = require('../../services/crypto.service');
 const integrityService = require('../../services/integrity.service');
@@ -58,8 +59,8 @@ describe('Game Feature Integration Tests', () => {
                 .post('/api/v1/game/initiate')
                 .send({});
 
-            expect(response.status).toBe(200);
-            expect(response.body.status).toBe('SUCCESS');
+            expect(response.status).toBe(StatusCodes.OK);
+            expect(response.body.status).toBe("SUCCESS");
             expect(response.body.sessionId).toBeDefined();
             expect(response.body.checklist.isSecure).toBe(false);
             expect(integrityService.decodeToken).not.toHaveBeenCalled();
@@ -73,8 +74,8 @@ describe('Game Feature Integration Tests', () => {
                 .set(HEADERS.PLAY_INTEGRITY_TOKEN, 'valid_mock_token')
                 .send({});
 
-            expect(response.status).toBe(200);
-            expect(response.body.status).toBe('SUCCESS');
+            expect(response.status).toBe(StatusCodes.OK);
+            expect(response.body.status).toBe("SUCCESS");
             expect(response.body.checklist.isSecure).toBe(true);
         });
     });
@@ -88,8 +89,8 @@ describe('Game Feature Integration Tests', () => {
                 .set(HEADERS.PLAY_INTEGRITY_TOKEN, 'valid_mock_token')
                 .send({});
 
-            expect(response.status).toBe(200);
-            expect(response.body.status).toBe('SUCCESS');
+            expect(response.status).toBe(StatusCodes.OK);
+            expect(response.body.status).toBe("SUCCESS");
             expect(response.body.checklist.isSecure).toBe(true);
         });
     });
@@ -134,8 +135,8 @@ describe('Game Feature Integration Tests', () => {
                 .set(HEADERS.PLAY_INTEGRITY_TOKEN, 'valid_final_token')
                 .send(stopPayload);
 
-            expect(stopRes.status).toBe(200);
-            expect(stopRes.body.status).toBe('SUCCESS');
+            expect(stopRes.status).toBe(StatusCodes.OK);
+            expect(stopRes.body.status).toBe("SUCCESS");
             expect(stopRes.body.message).toBe('Score verified.');
         });
 
@@ -162,7 +163,7 @@ describe('Game Feature Integration Tests', () => {
                 .set(HEADERS.PLAY_INTEGRITY_TOKEN, 'valid_final_token')
                 .send(stopPayload);
 
-            expect(stopRes.status).toBe(403);
+            expect(stopRes.status).toBe(StatusCodes.FORBIDDEN);
             expect(stopRes.body.message).toMatch(/Security violation: Missing background token/);
         });
 
@@ -188,7 +189,7 @@ describe('Game Feature Integration Tests', () => {
                 .set(HEADERS.PLAY_INTEGRITY_TOKEN, 'valid_final_token')
                 .send(stopPayload);
 
-            expect(stopRes.status).toBe(403);
+            expect(stopRes.status).toBe(StatusCodes.FORBIDDEN);
             expect(stopRes.body.message).toBe('Payload signature validation failed.');
         });
 
@@ -207,7 +208,7 @@ describe('Game Feature Integration Tests', () => {
                 .set(HEADERS.PLAY_INTEGRITY_TOKEN, 'valid_final_token')
                 .send(stopPayload);
 
-            expect(stopRes.status).toBe(404);
+            expect(stopRes.status).toBe(StatusCodes.NOT_FOUND);
             expect(stopRes.body.message).toBe('Session expired.');
         });
     });

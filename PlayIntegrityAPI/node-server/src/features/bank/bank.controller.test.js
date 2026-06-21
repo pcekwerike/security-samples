@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+const { StatusCodes } = require('http-status-codes');
 const bankController = require('./bank.controller');
 const cryptoService = require('../../services/crypto.service');
 const bankPolicy = require('./bank.policy');
@@ -47,7 +48,7 @@ describe('BankController Unit Tests', () => {
 
         await bankController.handleTransfer(req, res, next);
 
-        expect(res.status).toHaveBeenCalledWith(400);
+        expect(res.status).toHaveBeenCalledWith(StatusCodes.BAD_REQUEST);
         expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
             error_code: "MISSING_IDEMPOTENCY_KEY"
         }));
@@ -59,13 +60,13 @@ describe('BankController Unit Tests', () => {
         bankPolicy.evaluateTransferPolicy.mockReturnValue(true);
 
         await bankController.handleTransfer(req, res, next);
-        expect(res.status).toHaveBeenCalledWith(200);
+        expect(res.status).toHaveBeenCalledWith(StatusCodes.OK);
 
         // Run again with the exact same request body
         const duplicateRes = { status: jest.fn().mockReturnThis(), json: jest.fn() };
         await bankController.handleTransfer(req, duplicateRes, next);
 
-        expect(duplicateRes.status).toHaveBeenCalledWith(409);
+        expect(duplicateRes.status).toHaveBeenCalledWith(StatusCodes.CONFLICT);
         expect(duplicateRes.json).toHaveBeenCalledWith(expect.objectContaining({
             error_code: "DUPLICATE_TRANSACTION"
         }));
@@ -76,7 +77,7 @@ describe('BankController Unit Tests', () => {
 
         await bankController.handleTransfer(req, res, next);
 
-        expect(res.status).toHaveBeenCalledWith(401);
+        expect(res.status).toHaveBeenCalledWith(StatusCodes.UNAUTHORIZED);
         expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
             error_code: "UNAUTHORIZED"
         }));
@@ -90,7 +91,7 @@ describe('BankController Unit Tests', () => {
 
         await bankController.handleTransfer(req, res, next);
 
-        expect(res.status).toHaveBeenCalledWith(403);
+        expect(res.status).toHaveBeenCalledWith(StatusCodes.FORBIDDEN);
         expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
             error_code: "REQUEST_TAMPERED"
         }));
@@ -105,7 +106,7 @@ describe('BankController Unit Tests', () => {
 
         await bankController.handleTransfer(req, res, next);
 
-        expect(res.status).toHaveBeenCalledWith(403);
+        expect(res.status).toHaveBeenCalledWith(StatusCodes.FORBIDDEN);
         expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
             error_code: "INTEGRITY_REJECTED",
             remediation_action: "GET_INTEGRITY"
@@ -121,7 +122,7 @@ describe('BankController Unit Tests', () => {
 
         await bankController.handleTransfer(req, res, next);
 
-        expect(res.status).toHaveBeenCalledWith(200);
+        expect(res.status).toHaveBeenCalledWith(StatusCodes.OK);
         expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
             status: "SUCCESS"
         }));

@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+const { StatusCodes } = require('http-status-codes');
 const cryptoService = require('../../services/crypto.service');
 const streamingPolicy = require('./streaming.policy');
 const manifestService = require('./manifest.service');
@@ -35,7 +36,7 @@ class StreamingController {
             const customManifestXml = await manifestService.getFilteredManifest(maxQuality);
 
             res.set('Content-Type', 'application/dash+xml');
-            res.status(200).send(customManifestXml);
+            res.status(StatusCodes.OK).send(customManifestXml);
 
         } catch (error) {
             next(error);
