@@ -13,6 +13,20 @@
 > broader, multi-layered anti-abuse strategy tailored to their specific business
 > risks.
 
+> [!WARNING]
+> Security Notice: Cleartext HTTP in Development
+>
+> Across the Android client, interactions rely on a dynamically configured base URL
+> (`BuildConfig.BASE_URL`) that points to a local Node.js server using unencrypted HTTP
+> (e.g., `http://localhost:3000` or `http://10.0.2.2:3000`). This is an intentional design choice
+> for this sample to minimize setup complexity and ensure frictionless onboarding, avoiding the
+> need to generate and configure self-signed SSL/TLS certificates locally.
+>
+> **This configuration is strictly for local deployment.** When integrating these
+> concepts into your own production app, you **should** secure your network layer by using
+> secure HTTPS (`https://`) and avoid having cleartext permissions in your
+> `network_security_config.xml`.
+
 # Setup
 
 To run the Play Integrity API Canonical Sample end-to-end, you need to configure
