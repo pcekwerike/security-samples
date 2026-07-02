@@ -32,8 +32,7 @@ sealed interface StreamingResult {
 }
 
 class GetSecureStreamingConfigUseCase @Inject constructor(
-    private val integrityRepository: IntegrityRepository,
-    @GoogleCloudProjectNumber private val gcpProjectNumber: Long
+    private val integrityRepository: IntegrityRepository
 ) {
     private companion object {
         const val TAG = "StreamingUseCase"

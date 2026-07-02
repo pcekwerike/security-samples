@@ -85,8 +85,7 @@ data class BankUiState(
 @HiltViewModel
 class BankViewModel @Inject constructor(
     private val submitSecureTransferUseCase: SubmitSecureTransferUseCase,
-    private val integrityRepository: IntegrityRepository,
-    @GoogleCloudProjectNumber private val gcpProjectNumber: Long
+    private val integrityRepository: IntegrityRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(BankUiState())
