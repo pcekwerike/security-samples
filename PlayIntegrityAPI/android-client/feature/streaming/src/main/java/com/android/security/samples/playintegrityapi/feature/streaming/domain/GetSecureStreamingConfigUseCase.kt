@@ -75,22 +75,37 @@ class GetSecureStreamingConfigUseCase @Inject constructor(
      * Implements graceful degradation by returning null if the local token request fails.
      */
     private suspend fun fetchIntegrityToken(requestHash: String, forceWarmup: Boolean): String? {
-        if(forceWarmup){
+        if (forceWarmup) {
             integrityRepository.warmUp()
         }
 
         Log.d(TAG, "Requesting Standard Integrity Token...")
         val tokenResult = integrityRepository.requestIntegrityToken(requestHash = requestHash)
 
-        return if (tokenResult.isSuccess) {
+        if (tokenResult.isSuccess) {
             Log.d(TAG, "-> Token successfully retrieved.")
-            tokenResult.getOrThrow().token()
-        } else {
-            Log.w(
-                TAG,
-                "-> Token generation failed locally. Proceeding without token to trigger lowest tier fallback."
-            )
-            null
+            return tokenResult.getOrThrow().token()
         }
+
+        // -------------------------------------------------------------------------
+        // DESIGN CHOICE: UX vs. Security Trade-off
+        // Returning null here instead of throwing an exception is intentional.
+        // This "fail-open" behavior is a product decision to ensure that users
+        // are always presented with playback, even if the Play Integrity token
+        // generation fails locally.
+        //
+        // BACKEND ENFORCEMENT: By returning null, the backend server detects the
+        // missing token and falls back to serving a restricted, lowest-tier streaming
+        // configuration to maintain security.
+        //
+        // STRICT SECURITY REQUIREMENT: If your app demands strict security (e.g.,
+        // high-value premium content, financial transactions), implement a "fail-closed"
+        // strategy here by throwing an exception or returning a StreamingResult.Failure.
+        // -------------------------------------------------------------------------
+        Log.w(
+            TAG,
+            "-> Token generation failed locally. Proceeding without token to trigger lowest tier fallback."
+        )
+        return null
     }
 }
