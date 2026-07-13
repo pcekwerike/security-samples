@@ -86,7 +86,7 @@ class SubmitSecureTransferUseCase @Inject constructor(
 
     private fun createTransferRequest(accountNumber: String, amount: BigDecimal): TransferRequest {
         // NOTE: While Play Integrity API Standard Mode offers automatic replay protection,
-        // it only prevents a single token from being verified excessively (typically more than ~3 times).
+        // it only prevents a single token from being verified excessively. See https://developer.android.com/google/play/integrity/standard#replay-protection
         // To strictly prevent duplicate requests (exactly-once execution), an app must implement
         // its own idempotency mechanism using a unique key.
         return TransferRequest(

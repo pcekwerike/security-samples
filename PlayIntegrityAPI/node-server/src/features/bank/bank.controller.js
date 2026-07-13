@@ -16,10 +16,11 @@ const { StatusCodes } = require('http-status-codes');
 const cryptoService = require('../../services/crypto.service');
 const bankPolicy = require('./bank.policy');
 
-// In-memory store for idempotency keys (Sample App Only)
-// PRODUCTION NOTE: In a real-world environment, use a distributed cache (e.g., Redis)
-// or a database with atomic constraints to store idempotency keys. This ensures
-// thread safety and prevents race conditions across multiple server instances.
+// NOTE: For simplicity in this sample app, processed idempotency keys are stored in an in-memory Set.
+// In a real-world production environment:
+// 1. Use a distributed, highly available data store (such as Redis) rather than server memory.
+// 2. Set an explicit Time-To-Live (TTL) expiration on keys (e.g., 24 to 48 hours) to prevent unbounded memory growth.
+// 3. Ensure the check-and-set operation is executed atomically (e.g., using Redis SETNX) to avoid race conditions.
 const processedTransactions = new Set();
 
 /**
@@ -50,7 +51,7 @@ class BankController {
             // Validate Idempotency Key (Strict Duplicate Prevention)
             // PRODUCTION NOTE: While Play Integrity API Standard Mode provides automatic
             // replay protection, it only prevents a token from being decoded/replayed
-            // excessively (typically more than ~3 times). For strict, exactly-once operations
+            // excessively. See https://developer.android.com/google/play/integrity/standard#replay-protection. For strict, exactly-once operations
             // like financial transfers, apps cannot rely solely on PIA's automatic replay
             // protection. You must implement your own idempotency check using a unique key.
             if (processedTransactions.has(idempotencyKey)) {
@@ -110,6 +111,8 @@ class BankController {
             });
 
         } catch (error) {
+            // Rollback the claim if the transaction failed, allowing future retries
+            processedTransactions.delete(idempotencyKey);
             next(error);
         }
     }
