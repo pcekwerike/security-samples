@@ -29,6 +29,12 @@ class InitiateGameUseCase @Inject constructor(
     private val gameRepository: GameRepository,
     private val integrityRepository: IntegrityRepository
 ) {
+    // Token preparation and session initialisation:
+    // When the user taps Start Secure Session, the client fetches a server-generated challenge,
+    // hashes it, and requests a Play Integrity token bound to this challenge.
+    // It then calls POST /api/v1/game/initiate with the token.
+    // The server returns a unique sessionId, the game's targetTime, and an array of
+    // randomised check-in intervals (e.g. [2.5, 5.12, 8.3]).
     suspend operator fun invoke(): GameResult<GameInitiateResponse> {
         val challengeResponse = gameRepository.getChallenge()
         if (!challengeResponse.isSuccessful || challengeResponse.body() == null) {

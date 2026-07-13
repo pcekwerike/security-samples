@@ -92,6 +92,10 @@ class BankViewModel @Inject constructor(
     val uiState: StateFlow<BankUiState> = _uiState.asStateFlow()
 
     init {
+        // Token preparation (warm-up):
+        // To ensure the high-value action (tapping "Transfer") executes with minimal
+        // latency, we asynchronously call StandardIntegrityManager.prepareIntegrityToken()
+        // to pre-warm the token provider when the user navigates to the Transaction portal.
         viewModelScope.launch {
             integrityRepository.warmUp()
         }
@@ -130,6 +134,10 @@ class BankViewModel @Inject constructor(
         }
     }
 
+    // Handling remediation (Step 3: Triggering the Dialog):
+    // If the user chooses to resolve the issue from the UI prompt, this method
+    // invokes standardIntegrityManager.showDialog() via the IntegrityRepository
+    // to display the appropriate Play Integrity remediation dialog.
     fun triggerRemediationDialog(activity: Activity) {
         val state = uiState.value.transferState
 
