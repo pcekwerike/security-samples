@@ -139,10 +139,17 @@ specific Google Cloud project.
     *   Note: once the device is disconnected, you will need to run this command
         again the next time you need to test this flow
 
-# # Banking Micro App
+# Banking Micro App
 
 The Banking micro-app demonstrates how to securely parse HTTP requests,
 cryptographically validate Play Integrity tokens, and enforce business rules.
+
+<div align="center">
+  <img src="media/bank_app_remediation.gif" height="400" alt="Banking App Flow">
+</div>
+
+### User Journey Overview
+When a user attempts to submit a secure transfer, the app requests an integrity token. If the device fails the integrity checks (e.g., a compromised device or unlicensed app), a remediation dialog prompts the user to resolve the issue (such as installing from Google Play). Upon successful remediation, the app retries the transaction securely.
 
 ## Client-Side Implementation
 See the following files in `android-client/feature/bank`:
@@ -160,6 +167,13 @@ See the following files in `node-server/src/features/bank`:
 
 The Streaming micro-app demonstrates how to parse standard integrity tokens,
 enforce tiered access policies, and dynamically modify DASH XML manifests.
+
+<div align="center">
+  <img src="media/streaming_app.gif" height="400" alt="Streaming App Flow">
+</div>
+
+### User Journey Overview
+The user accesses video content, which requests an integrity token to determine their device's trust tier. Based on the returned token, the backend dynamically modifies the video manifest to serve either premium or restricted streams. A user on a verified device enjoys high-quality streaming, while an unrecognized environment receives degraded quality without outright blocking playback.
 
 ## Client-Side Implementation
 See the following files in `android-client/feature/streaming`:
@@ -179,6 +193,13 @@ See the following files in `node-server/src/features/streaming`:
 The Game sample showcases a stateful, secure verification pattern designed to defeat TOCTOU
 (Time-of-Check to Time-of-Use) cheats, enforce strict environment policies, and securely evaluate
 background Play Integrity API attestations.
+
+<div align="center">
+  <img src="media/game_app_remediation.gif" height="400" alt="Game App Flow">
+</div>
+
+### User Journey Overview
+Upon initiating a game session, a secure state is established on the server. While playing, the app performs background checks and sends periodic updates. If an anomaly is detected (like an attached debugger or a compromised environment), the game pauses and prompts the user for remediation. Once the environment is secure again, gameplay resumes, culminating in a securely validated final score submission.
 
 ## Client-Side Implementation
 See the following files in `android-client/feature/game`:
