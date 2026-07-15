@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-const { StatusCodes } = require('http-status-codes');
+const {StatusCodes} = require('http-status-codes');
 const cryptoService = require('../../services/crypto.service');
 const bankPolicy = require('./bank.policy');
 
@@ -36,85 +36,72 @@ class BankController {
      * @param {Function} next - Express middleware function for error delegation.
      */
     async handleTransfer(req, res, next) {
+        // Access the payload attached by the integrity middleware
+        const tokenPayload = res.locals.integrityPayload;
+        if (!tokenPayload) {
+            return res.status(StatusCodes.UNAUTHORIZED).json({
+                status: "ERROR",
+                error_code: "UNAUTHORIZED",
+                message: "A valid Play Integrity token is required for the transaction."
+            });
+        }
+
+        // Verify Content Binding
+        const tokenRequestHash = tokenPayload.requestDetails?.requestHash;
+        const payload = req.body;
         try {
-            const payload = req.body;
-            const idempotencyKey = payload.idempotencyKey;
-
-            if (!idempotencyKey) {
-                return res.status(StatusCodes.BAD_REQUEST).json({
-                    status: "ERROR",
-                    error_code: "MISSING_IDEMPOTENCY_KEY",
-                    message: "An idempotency key is required to process the transfer."
-                });
-            }
-
-            // Validate Idempotency Key (Strict Duplicate Prevention)
-            // PRODUCTION NOTE: While Play Integrity API Standard Mode provides automatic
-            // replay protection, it only prevents a token from being decoded/replayed
-            // excessively. See https://developer.android.com/google/play/integrity/standard#replay-protection. For strict, exactly-once operations
-            // like financial transfers, apps cannot rely solely on PIA's automatic replay
-            // protection. You must implement your own idempotency check using a unique key.
-            if (processedTransactions.has(idempotencyKey)) {
-                return res.status(StatusCodes.CONFLICT).json({
-                    status: "ERROR",
-                    error_code: "DUPLICATE_TRANSACTION",
-                    message: "A transaction with this idempotency key has already been processed."
-                });
-            }
-
-            // Access the payload attached by the integrity middleware
-            const tokenPayload = res.locals.integrityPayload;
-            if (!tokenPayload) {
-                return res.status(StatusCodes.UNAUTHORIZED).json({
-                    status: "ERROR",
-                    error_code: "UNAUTHORIZED",
-                    message: "A valid Play Integrity token is required for the transaction."
-                });
-            }
-
-            // Compute payload hash for Content Binding verification
             const serverRequestHash = cryptoService.computePayloadHash(payload);
-
-            // Verify Content Binding
-            const tokenRequestHash = tokenPayload.requestDetails?.requestHash;
             if (serverRequestHash !== tokenRequestHash) {
                 return res.status(StatusCodes.FORBIDDEN).json({
-                    status: "ERROR",
-                    error_code: "REQUEST_TAMPERED",
-                    message: "The request payload has been altered."
+                    status: "ERROR", error_code: "REQUEST_TAMPERED", message: "The request payload has been altered."
                 });
             }
-
-            // Evaluate verdicts against the Bank feature policy
-            const isPolicyMet = bankPolicy.evaluateTransferPolicy(tokenPayload);
-
-            if (!isPolicyMet) {
-                return res.status(StatusCodes.FORBIDDEN).json({
-                    status: "ERROR",
-                    error_code: "INTEGRITY_REJECTED",
-                    message: "Device does not meet the required security standards.",
-                    remediation_code: 4,
-                    remediation_action: "GET_INTEGRITY"
-                });
-            }
-
-            // Register Idempotency Key
-            // PRODUCTION NOTE: Register the idempotency key in Redis/DB *after* all
-            // validations pass, ideally alongside the actual database transaction commit.
-            processedTransactions.add(idempotencyKey);
-
-            // Happy Path: Process transaction
-            return res.status(StatusCodes.OK).json({
-                status: "SUCCESS",
-                transactionId: `TXN-${Math.floor(Math.random() * 1000000000)}`,
-                message: "Transfer completed successfully."
-            });
-
         } catch (error) {
-            // Rollback the claim if the transaction failed, allowing future retries
-            processedTransactions.delete(idempotencyKey);
             next(error);
         }
+
+        // Evaluate Play Integrity token payload against the Bank transfer policy
+        const isPolicyMet = bankPolicy.evaluateTransferPolicy(tokenPayload);
+        if (!isPolicyMet) {
+            return res.status(StatusCodes.FORBIDDEN).json({
+                status: "ERROR",
+                error_code: "INTEGRITY_REJECTED",
+                message: "Device does not meet the required security standards.",
+                remediation_code: 4,
+                remediation_action: "GET_INTEGRITY"
+            });
+        }
+
+        // Validate Idempotency Key for duplicate transaction prevention
+        // PRODUCTION NOTE: While Play Integrity API Standard Mode provides automatic
+        // replay protection, it only prevents a token from being decoded/replayed
+        // excessively. See https://developer.android.com/google/play/integrity/standard#replay-protection.
+        // For strict, exactly-once operations like financial transfers, apps cannot rely solely on PIA's automatic replay
+        // protection. You must implement your own idempotency check using a unique key.
+        const idempotencyKey = payload.idempotencyKey;
+        if (!idempotencyKey) {
+            return res.status(StatusCodes.BAD_REQUEST).json({
+                status: "ERROR",
+                error_code: "MISSING_IDEMPOTENCY_KEY",
+                message: "An idempotency key is required to process the transfer."
+            });
+        }
+        if (processedTransactions.has(idempotencyKey)) {
+            return res.status(StatusCodes.CONFLICT).json({
+                status: "ERROR",
+                error_code: "DUPLICATE_TRANSACTION",
+                message: "A transaction with this idempotency key has already been processed."
+            });
+        }
+
+        // PRODUCTION NOTE: Register the idempotency key in Redis/DB *after* all
+        // validations pass, ideally alongside the actual database transaction commit.
+        processedTransactions.add(idempotencyKey);
+        return res.status(StatusCodes.OK).json({
+            status: "SUCCESS",
+            transactionId: `TXN-${Math.floor(Math.random() * 1000000000)}`,
+            message: "Transfer completed successfully."
+        });
     }
 }
 

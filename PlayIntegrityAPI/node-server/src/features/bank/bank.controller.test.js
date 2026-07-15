@@ -45,6 +45,11 @@ describe('BankController Unit Tests', () => {
 
     it('should return 400 MISSING_IDEMPOTENCY_KEY if key is missing', async () => {
         delete req.body.idempotencyKey;
+        cryptoService.computePayloadHash.mockReturnValue('matching_hash');
+        res.locals.integrityPayload = {
+            requestDetails: { requestHash: 'matching_hash' }
+        };
+        bankPolicy.evaluateTransferPolicy.mockReturnValue(true);
 
         await bankController.handleTransfer(req, res, next);
 
@@ -63,7 +68,11 @@ describe('BankController Unit Tests', () => {
         expect(res.status).toHaveBeenCalledWith(StatusCodes.OK);
 
         // Run again with the exact same request body
-        const duplicateRes = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+        const duplicateRes = { 
+            status: jest.fn().mockReturnThis(), 
+            json: jest.fn(),
+            locals: { integrityPayload: { requestDetails: { requestHash: 'hash' } } }
+        };
         await bankController.handleTransfer(req, duplicateRes, next);
 
         expect(duplicateRes.status).toHaveBeenCalledWith(StatusCodes.CONFLICT);
@@ -131,7 +140,6 @@ describe('BankController Unit Tests', () => {
     it('should call next(error) if an exception is thrown', async () => {
         const mockError = new Error("Network failure");
         res.locals.integrityPayload = { requestDetails: {} };
-
         cryptoService.computePayloadHash.mockImplementation(() => {
             throw mockError;
         });

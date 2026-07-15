@@ -34,13 +34,28 @@ describe('Bank Feature Integration Tests (POST /api/v1/bank/transfer)', () => {
     });
 
     it('should return 400 MISSING_IDEMPOTENCY_KEY if idempotencyKey is missing from payload', async () => {
+        const payload = { accountNumber: "1234567890", amount: "50.00" };
+        const expectedHash = cryptoService.computePayloadHash(payload);
+        integrityService.decodeToken.mockResolvedValue({
+            requestDetails: { requestHash: expectedHash },
+            deviceIntegrity: {
+                deviceRecognitionVerdict: [INTEGRITY_VERDICTS.DEVICE.MEETS_DEVICE_INTEGRITY]
+            },
+            appIntegrity: {
+                appRecognitionVerdict: INTEGRITY_VERDICTS.APP.PLAY_RECOGNIZED
+            },
+            accountDetails: {
+                appLicensingVerdict: INTEGRITY_VERDICTS.ACCOUNT.LICENSED
+            }
+        });
+
         const response = await request(app)
             .post('/api/v1/bank/transfer')
-            .send({ accountNumber: "1234567890", amount: "50.00" });
+            .set(HEADERS.PLAY_INTEGRITY_TOKEN, 'valid_mock_token')
+            .send(payload);
 
         expect(response.status).toBe(StatusCodes.BAD_REQUEST);
         expect(response.body.error_code).toBe("MISSING_IDEMPOTENCY_KEY");
-        expect(integrityService.decodeToken).not.toHaveBeenCalled();
     });
 
     it('should return 401 if token header is missing', async () => {
