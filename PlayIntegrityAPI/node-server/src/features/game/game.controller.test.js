@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+const { StatusCodes } = require('http-status-codes');
 const gameController = require('./game.controller');
 const gamePolicy = require('./game.policy');
 const cryptoService = require('../../services/crypto.service');
@@ -64,7 +65,7 @@ describe('GameController Unit Tests', () => {
             await gameController.initiate(req, res, next);
 
             expect(gamePolicy.evaluateEnvironment).toHaveBeenCalledWith({ some: 'payload' });
-            expect(res.status).toHaveBeenCalledWith(200);
+            expect(res.status).toHaveBeenCalledWith(StatusCodes.OK);
             expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
                 status: "SUCCESS",
                 sessionId: expect.any(String),
@@ -94,7 +95,7 @@ describe('GameController Unit Tests', () => {
             await gameController.getStatus(req, res, next);
 
             expect(gamePolicy.evaluateEnvironment).toHaveBeenCalledWith(null);
-            expect(res.status).toHaveBeenCalledWith(200);
+            expect(res.status).toHaveBeenCalledWith(StatusCodes.OK);
             expect(res.json).toHaveBeenCalledWith({
                 status: "SUCCESS",
                 checklist: { isSecure: false }
@@ -119,7 +120,7 @@ describe('GameController Unit Tests', () => {
 
             await gameController.stop(req, res, next);
 
-            expect(res.status).toHaveBeenCalledWith(404);
+            expect(res.status).toHaveBeenCalledWith(StatusCodes.NOT_FOUND);
             expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
                 message: "Session expired."
             }));
@@ -132,7 +133,7 @@ describe('GameController Unit Tests', () => {
 
             await gameController.stop(req, res, next);
 
-            expect(res.status).toHaveBeenCalledWith(403);
+            expect(res.status).toHaveBeenCalledWith(StatusCodes.FORBIDDEN);
             expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
                 message: "Environment compromised: Invalid final attestation."
             }));
@@ -148,7 +149,7 @@ describe('GameController Unit Tests', () => {
 
             await gameController.stop(req, res, next);
 
-            expect(res.status).toHaveBeenCalledWith(403);
+            expect(res.status).toHaveBeenCalledWith(StatusCodes.FORBIDDEN);
             expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
                 message: "Payload signature validation failed."
             }));
@@ -167,7 +168,7 @@ describe('GameController Unit Tests', () => {
 
             await gameController.stop(req, res, next);
 
-            expect(res.status).toHaveBeenCalledWith(403);
+            expect(res.status).toHaveBeenCalledWith(StatusCodes.FORBIDDEN);
             expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
                 message: expect.stringContaining("Security violation: Missing background token")
             }));
@@ -187,7 +188,7 @@ describe('GameController Unit Tests', () => {
 
             await gameController.stop(req, res, next);
 
-            expect(res.status).toHaveBeenCalledWith(403);
+            expect(res.status).toHaveBeenCalledWith(StatusCodes.FORBIDDEN);
             expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
                 message: "Failed to verify interval attestation."
             }));
@@ -210,7 +211,7 @@ describe('GameController Unit Tests', () => {
 
             await gameController.stop(req, res, next);
 
-            expect(res.status).toHaveBeenCalledWith(403);
+            expect(res.status).toHaveBeenCalledWith(StatusCodes.FORBIDDEN);
             expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
                 message: "Interval binding mismatch."
             }));
@@ -240,7 +241,7 @@ describe('GameController Unit Tests', () => {
 
             await gameController.stop(req, res, next);
 
-            expect(res.status).toHaveBeenCalledWith(403);
+            expect(res.status).toHaveBeenCalledWith(StatusCodes.FORBIDDEN);
             expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
                 error_code: "ENVIRONMENT_COMPROMISED",
                 message: expect.stringContaining("Cheat toggling detected")
@@ -270,7 +271,7 @@ describe('GameController Unit Tests', () => {
 
             await gameController.stop(req, res, next);
 
-            expect(res.status).toHaveBeenCalledWith(403);
+            expect(res.status).toHaveBeenCalledWith(StatusCodes.FORBIDDEN);
             expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
                 message: "Environment compromised."
             }));
@@ -299,7 +300,7 @@ describe('GameController Unit Tests', () => {
 
             await gameController.stop(req, res, next);
 
-            expect(res.status).toHaveBeenCalledWith(200);
+            expect(res.status).toHaveBeenCalledWith(StatusCodes.OK);
             expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
                 status: "SUCCESS",
                 message: "Score verified."
