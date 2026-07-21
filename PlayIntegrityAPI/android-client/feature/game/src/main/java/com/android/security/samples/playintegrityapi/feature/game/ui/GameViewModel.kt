@@ -245,7 +245,10 @@ class GameViewModel @Inject constructor(
     }
 
     /**
-     * TOCTOU Defence: Schedule background token generation for every random interval
+     * TOCTOU Defence: Schedule background token generation for every random interval.
+     * While the game is running, the client silently requests a new Play Integrity token
+     * at each required interval. The requestHash for these intermediate tokens binds the
+     * sessionId and the current interval time.
      */
     private fun scheduleAllIntervalTokens() {
         intervals.forEach { interval ->

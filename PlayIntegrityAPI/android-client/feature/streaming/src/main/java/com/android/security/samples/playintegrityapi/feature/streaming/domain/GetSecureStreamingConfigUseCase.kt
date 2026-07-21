@@ -58,7 +58,15 @@ class GetSecureStreamingConfigUseCase @Inject constructor(
     }
 
     /**
-     * Constructs the JSON payload and generates a SHA-256 hash.
+     * Request Hash Generation (Content Binding):
+     * The streaming payload is simply the requested video context. The client manually
+     * constructs a tight JSON string and generates a SHA-256 hash of this string to produce
+     * the requestHash.
+     *
+     * In a production environment, you should strengthen this binding further. Instead
+     * of just hashing the action and content ID, consider including a non sensitive
+     * user-specific identifier within the hashed data (e.g. a sessionId or userId).
+     *
      * WARNING: Cryptographic hashes are extremely sensitive to whitespace.
      * This string must precisely match how the server stringifies its payload.
      */

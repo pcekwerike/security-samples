@@ -26,6 +26,10 @@ class StreamingController {
 
     async getManifest(req, res, next) {
         try {
+            // Token Decoding & Replay Protection:
+            // The token is extracted and decoded via the `integrity.middleware`.
+            // Because we use Standard requests, Google's server automatically detects
+            // and rejects replayed tokens.
             const integrityPayload = res.locals.integrityPayload;
             const contentId = req.params.contentId;
 
