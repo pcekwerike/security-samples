@@ -54,25 +54,40 @@ describe('Game Feature Integration Tests', () => {
     });
 
     describe('POST /api/v1/game/initiate', () => {
-        it('should return 200 and an insecure checklist if token header is missing', async () => {
+        it('should return 400 if challenge is missing', async () => {
             const response = await request(app)
                 .post('/api/v1/game/initiate')
                 .send({});
 
-            expect(response.status).toBe(StatusCodes.OK);
-            expect(response.body.status).toBe("SUCCESS");
-            expect(response.body.sessionId).toBeDefined();
-            expect(response.body.checklist.isSecure).toBe(false);
-            expect(integrityService.decodeToken).not.toHaveBeenCalled();
+            expect(response.status).toBe(StatusCodes.BAD_REQUEST);
+            expect(response.body.status).toBe('ERROR');
+            expect(response.body.message).toBe('Missing challenge.');
         });
 
-        it('should return 200 and a secure checklist if a valid token is provided', async () => {
-            integrityService.decodeToken.mockResolvedValue(getSecurePayload('dummy_hash'));
+        it('should return 403 and an insecure checklist if token header is missing but challenge is present', async () => {
+            const challengeRes = await request(app).post('/api/v1/game/challenge').send({});
+            const challenge = challengeRes.body.challenge;
+
+            const response = await request(app)
+                .post('/api/v1/game/initiate')
+                .send({ challenge });
+
+            expect(response.status).toBe(StatusCodes.FORBIDDEN);
+            expect(response.body.status).toBe('ERROR');
+        });
+
+        it('should return 200 and a secure checklist if a valid token and challenge are provided', async () => {
+            const challengeRes = await request(app).post('/api/v1/game/challenge').send({});
+            const challenge = challengeRes.body.challenge;
+            const initPayload = { challenge };
+            const expectedHash = cryptoService.computePayloadHash(initPayload);
+
+            integrityService.decodeToken.mockResolvedValue(getSecurePayload(expectedHash));
 
             const response = await request(app)
                 .post('/api/v1/game/initiate')
                 .set(HEADERS.PLAY_INTEGRITY_TOKEN, 'valid_mock_token')
-                .send({});
+                .send(initPayload);
 
             expect(response.status).toBe(StatusCodes.OK);
             expect(response.body.status).toBe("SUCCESS");
@@ -97,12 +112,15 @@ describe('Game Feature Integration Tests', () => {
 
     describe('POST /api/v1/game/stop (Full Flow & Security Checks)', () => {
         it('should successfully complete and verify a perfectly secure game session', async () => {
-            integrityService.decodeToken.mockResolvedValue(getSecurePayload('init_hash'));
+            const challengeRes = await request(app).post('/api/v1/game/challenge').send({});
+            const initPayload = { challenge: challengeRes.body.challenge };
+            const initExpectedHash = cryptoService.computePayloadHash(initPayload);
+            integrityService.decodeToken.mockResolvedValue(getSecurePayload(initExpectedHash));
 
             const initRes = await request(app)
                 .post('/api/v1/game/initiate')
                 .set(HEADERS.PLAY_INTEGRITY_TOKEN, 'valid_init_token')
-                .send({});
+                .send(initPayload);
 
             const { sessionId, intervals, targetTime } = initRes.body;
             const clientStartTime = 1000;
@@ -141,11 +159,15 @@ describe('Game Feature Integration Tests', () => {
         });
 
         it('should return 403 if background interval tokens are missing entirely', async () => {
-            integrityService.decodeToken.mockResolvedValue(getSecurePayload('init_hash'));
+            const challengeRes = await request(app).post('/api/v1/game/challenge').send({});
+            const initPayload = { challenge: challengeRes.body.challenge };
+            const initExpectedHash = cryptoService.computePayloadHash(initPayload);
+            integrityService.decodeToken.mockResolvedValue(getSecurePayload(initExpectedHash));
+
             const initRes = await request(app)
                 .post('/api/v1/game/initiate')
                 .set(HEADERS.PLAY_INTEGRITY_TOKEN, 'valid_init_token')
-                .send({});
+                .send(initPayload);
 
             const { sessionId, targetTime } = initRes.body;
             const stopPayload = {
@@ -168,11 +190,15 @@ describe('Game Feature Integration Tests', () => {
         });
 
         it('should return 403 if the final request payload has been tampered with (Content Binding Hash Mismatch)', async () => {
-            integrityService.decodeToken.mockResolvedValue(getSecurePayload('init_hash'));
+            const challengeRes = await request(app).post('/api/v1/game/challenge').send({});
+            const initPayload = { challenge: challengeRes.body.challenge };
+            const initExpectedHash = cryptoService.computePayloadHash(initPayload);
+            integrityService.decodeToken.mockResolvedValue(getSecurePayload(initExpectedHash));
+
             const initRes = await request(app)
                 .post('/api/v1/game/initiate')
                 .set(HEADERS.PLAY_INTEGRITY_TOKEN, 'valid_init_token')
-                .send({});
+                .send(initPayload);
 
             const { sessionId, targetTime, intervals } = initRes.body;
             const stopPayload = {

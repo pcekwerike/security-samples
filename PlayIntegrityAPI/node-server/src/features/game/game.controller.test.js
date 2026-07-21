@@ -30,12 +30,22 @@ describe('GameController Unit Tests', () => {
     const createValidSession = async (isSecure = true) => {
         gamePolicy.evaluateEnvironment.mockReturnValue({ isSecure, playProtectSafe: true });
 
-        const initReq = { body: {} };
+        const challengeReq = {};
+        const challengeRes = {
+            status: jest.fn().mockReturnThis(),
+            json: jest.fn()
+        };
+        await gameController.getChallenge(challengeReq, challengeRes, jest.fn());
+        const challenge = challengeRes.json.mock.calls[0][0].challenge;
+
+        const initReq = { body: { challenge } };
         const initRes = {
             status: jest.fn().mockReturnThis(),
             json: jest.fn(),
-            locals: { integrityPayload: { dummy: 'token' } }
+            locals: { integrityPayload: { requestDetails: { requestHash: 'test-hash' } } }
         };
+
+        cryptoService.computePayloadHash.mockReturnValue('test-hash');
 
         await gameController.initiate(initReq, initRes, jest.fn());
         return initRes.json.mock.calls[0][0]; // Extract { sessionId, targetTime, intervals, checklist }
@@ -60,11 +70,18 @@ describe('GameController Unit Tests', () => {
     describe('POST /initiate', () => {
         it('should create a session, calculate intervals, and return 200 SUCCESS', async () => {
             gamePolicy.evaluateEnvironment.mockReturnValue({ isSecure: true });
-            res.locals.integrityPayload = { some: 'payload' };
+
+            const challengeRes = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+            await gameController.getChallenge({}, challengeRes, next);
+            const challenge = challengeRes.json.mock.calls[0][0].challenge;
+
+            req.body = { challenge };
+            res.locals.integrityPayload = { requestDetails: { requestHash: 'mock-hash' } };
+            cryptoService.computePayloadHash.mockReturnValue('mock-hash');
 
             await gameController.initiate(req, res, next);
 
-            expect(gamePolicy.evaluateEnvironment).toHaveBeenCalledWith({ some: 'payload' });
+            expect(gamePolicy.evaluateEnvironment).toHaveBeenCalledWith({ requestDetails: { requestHash: 'mock-hash' } });
             expect(res.status).toHaveBeenCalledWith(StatusCodes.OK);
             expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
                 status: "SUCCESS",
@@ -80,6 +97,14 @@ describe('GameController Unit Tests', () => {
             gamePolicy.evaluateEnvironment.mockImplementation(() => {
                 throw mockError;
             });
+
+            const challengeRes = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+            await gameController.getChallenge({}, challengeRes, next);
+            const challenge = challengeRes.json.mock.calls[0][0].challenge;
+
+            req.body = { challenge };
+            res.locals.integrityPayload = { requestDetails: { requestHash: 'dummy-hash' } };
+            cryptoService.computePayloadHash.mockReturnValue('dummy-hash');
 
             await gameController.initiate(req, res, next);
 

@@ -19,13 +19,33 @@ const cryptoService = require('../../services/crypto.service');
 
 // In-memory store for active sessions
 const activeSessions = new Map();
+// In-memory store for active challenges (challenge -> expiryTimestamp)
+const activeChallenges = new Map();
 
 class GameController {
 
     constructor() {
+        this.getChallenge = this.getChallenge.bind(this);
         this.initiate = this.initiate.bind(this);
         this.getStatus = this.getStatus.bind(this);
         this.stop = this.stop.bind(this);
+    }
+
+    /**
+     * POST /api/v1/game/challenge
+     */
+    async getChallenge(req, res, next) {
+        try {
+            const challenge = crypto.randomUUID();
+            // Store challenge with 5 minute expiration
+            activeChallenges.set(challenge, Date.now() + 5 * 60 * 1000);
+            return res.status(200).json({
+                status: "SUCCESS",
+                challenge
+            });
+        } catch (error) {
+            next(error);
+        }
     }
 
     /**
@@ -33,7 +53,29 @@ class GameController {
      */
     async initiate(req, res, next) {
         try {
+            const { challenge } = req.body;
+            if (!challenge) {
+                return res.status(400).json({ status: "ERROR", message: "Missing challenge." });
+            }
+
+            const expiry = activeChallenges.get(challenge);
+            if (!expiry || Date.now() > expiry) {
+                if (expiry) activeChallenges.delete(challenge);
+                return res.status(403).json({ status: "ERROR", message: "Invalid or expired challenge." });
+            }
+            activeChallenges.delete(challenge);
+
             const tokenPayload = res.locals.integrityPayload || null;
+            if (!tokenPayload) {
+                return res.status(403).json({ status: "ERROR", message: "Missing integrity token payload." });
+            }
+
+            // Verify content binding
+            const serverRequestHash = cryptoService.computePayloadHash(req.body);
+            if (serverRequestHash !== tokenPayload.requestDetails?.requestHash) {
+                return res.status(403).json({ status: "ERROR", message: "Payload signature validation failed." });
+            }
+
             const verdicts = gamePolicy.evaluateEnvironment(tokenPayload);
             const sessionId = crypto.randomUUID();
 
@@ -92,7 +134,9 @@ class GameController {
      */
     async getStatus(req, res, next) {
         try {
-            // Same as initiate: allow status checks even if the token failed locally
+            // Same as initiate: allow status checks even if the token failed locally.
+            // DEVELOPER NOTE: The request hash is not verified here because the status check is 
+            // read-only and non-sensitive. Do not use unverified nonces on critical transaction endpoints.
             const tokenPayload = res.locals.integrityPayload || null;
             const verdicts = gamePolicy.evaluateEnvironment(tokenPayload);
 

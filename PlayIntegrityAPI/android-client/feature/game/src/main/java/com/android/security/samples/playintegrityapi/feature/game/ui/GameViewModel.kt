@@ -228,6 +228,9 @@ class GameViewModel @Inject constructor(
         sessionId = response.sessionId
         intervals = response.intervals
         updateChecklistUi(response.checklist)
+        // NOTE: The game transitions to Ready and allows the player to start even if the initial
+        // checklist contains violations. The server tracks these violations internally and enforces
+        // score rejection only at the end of the session, preventing instant feedback to potential cheaters.
         _uiState.update { it.copy(gameState = GameState.Ready(response.targetTime)) }
     }
 
