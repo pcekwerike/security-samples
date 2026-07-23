@@ -143,8 +143,8 @@ class IntegrityRepositoryImpl @Inject constructor(
      * Executes a given block of code with exponential backoff if a [StandardIntegrityException]
      * with [IntegrityErrorCode.CLIENT_TRANSIENT_ERROR] is thrown.
      *
-     * @param maxRetries The maximum number of attempts to make. If set to 3, the block will be
-     *                   executed up to 3 times (1 initial attempt + 2 retries).
+     * @param maxAttempts The maximum number of attempts to make. If set to 3, the block will be
+     *                    executed up to 3 times (1 initial attempt + 2 retries).
      * @param initialDelay The delay in milliseconds before the first retry attempt.
      * @param maxDelay The maximum delay in milliseconds allowed between retries. This caps the
      *                 delay from growing too large.
@@ -154,14 +154,14 @@ class IntegrityRepositoryImpl @Inject constructor(
      * @return The result of the [block] if successful.
      */
     private suspend inline fun <T> retryWithExponentialBackoff(
-        maxRetries: Int = 3,
+        maxAttempts: Int = 3,
         initialDelay: Long = 1000L,
         maxDelay: Long = 10000L,
         factor: Double = 2.0,
         crossinline block: suspend () -> T
     ): T {
         var currentDelay = initialDelay
-        repeat(maxRetries - 1) {
+        repeat(maxAttempts - 1) {
             try {
                 return block()
             } catch (e: StandardIntegrityException) {
