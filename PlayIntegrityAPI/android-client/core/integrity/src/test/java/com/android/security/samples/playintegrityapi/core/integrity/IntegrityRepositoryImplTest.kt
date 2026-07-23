@@ -66,15 +66,12 @@ class IntegrityRepositoryImplTest {
     fun `warmUp gives up and fails after maxAttempts of transient errors`() = runTest {
         val exception = mock<StandardIntegrityException>()
         whenever(exception.errorCode).thenReturn(IntegrityErrorCode.CLIENT_TRANSIENT_ERROR)
-        
-        // Always return the exception to simulate persistent transient failures
         whenever(standardIntegrityManager.prepareIntegrityToken(any()))
             .thenReturn(Tasks.forException(exception))
 
         val result = repository.warmUp()
 
         assertTrue(result.isFailure)
-        // Verify it retried exactly 3 times (the default maxAttempts)
         verify(standardIntegrityManager, times(3)).prepareIntegrityToken(any())
     }
 }
